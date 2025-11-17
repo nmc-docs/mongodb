@@ -1,0 +1,7 @@
+{
+  "label": "Nested Menu",
+  "position": 2,
+  "link": {
+    "type": "generated-index"
+  }
+}
