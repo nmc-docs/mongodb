@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunknextjs=self.webpackChunknextjs||[]).push([[92],{1650:e=>{e.exports=JSON.parse('{"categoryGeneratedIndex":{"title":"Gi\u1edbi thi\u1ec7u","slug":"/category/gi\u1edbi-thi\u1ec7u","permalink":"/mongodb/category/gi\u1edbi-thi\u1ec7u","sidebar":"tutorialSidebar","navigation":{"next":{"title":"MongoDB l\xe0 g\xec?","permalink":"/mongodb/"}}}}')}}]);
