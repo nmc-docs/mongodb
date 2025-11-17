@@ -1,6 +1,6 @@
 {
-  "label": "Nested Menu",
-  "position": 2,
+  "label": "Giới thiệu",
+  "position": 1,
   "link": {
     "type": "generated-index"
   }
