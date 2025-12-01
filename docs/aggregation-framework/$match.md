@@ -4,6 +4,8 @@ sidebar_position: 3
 
 # $match()
 
+## `$match()` là gì?
+
 :::info
 
 - `$match()` là stage quan trọng nhất, dùng để lọc dữ liệu (hoạt động giống WHERE trong SQL)
