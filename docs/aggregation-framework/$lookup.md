@@ -617,10 +617,10 @@ db.customers.aggregate([
       membership_level: 1,
       join_date: 1,
       status: 1,
-    
+  
       // Lấy summary
       order_summary: { $arrayElemAt: ["$order_analysis.summary", 0] },
-    
+  
       // Chuyển đổi by_status thành object
       order_status: {
         $arrayToObject: {
@@ -637,13 +637,13 @@ db.customers.aggregate([
           }
         }
       },
-    
+  
       // Lấy monthly trend
       monthly_trend: { $arrayElemAt: ["$order_analysis.monthly_trend", 0] },
-    
+  
       // Top products với product names
       top_products: { $arrayElemAt: ["$order_analysis.top_products", 0] },
-    
+  
       // Tính customer lifetime value
       clv: {
         $ifNull: [
@@ -651,7 +651,7 @@ db.customers.aggregate([
           0
         ]
       },
-    
+  
       // Phân loại customer
       customer_segment: {
         $switch: {
@@ -763,7 +763,7 @@ db.products.aggregate([
       category: 1,
       price: 1,
       current_stock: "$stock_quantity",
-    
+  
       // Sales Analysis
       sales_summary: {
         $cond: {
@@ -776,7 +776,7 @@ db.products.aggregate([
           }
         }
       },
-    
+  
       // Inventory Metrics
       inventory_metrics: {
         months_of_supply: {
@@ -826,7 +826,7 @@ db.products.aggregate([
           ]
         }
       },
-    
+  
       // Supplier Info
       supplier: {
         $cond: {
@@ -839,7 +839,7 @@ db.products.aggregate([
           else: null
         }
       },
-    
+  
       // Product Performance
       performance: {
         sell_through_rate: {
@@ -925,6 +925,119 @@ db.orders.aggregate([
   }
 ]);
 ```
+
+## Khi nào nên dùng $lookup với let và pipeline?
+
+### Khi cần truyền nhiều biến từ collection chính sang sub-pipeline
+
+- Dạng đơn giản chỉ cho phép:
+  ```js
+  localField: "_id",
+  foreignField: "user_id"
+  ```
+
+→ Tức là chỉ join theo 1 trường.
+
+Nhưng nếu ta cần truyền **nhiều giá trị** vào pipeline để filter (ví dụ: userId, status, roles,…), thì phải dùng:
+
+```js
+let: { userId: "$_id", status: "$status" }
+```
+
+- Và trong pipeline:
+  ```js
+  $match: {
+     $expr: {
+        $and: [
+           { $eq: ["$user_id", "$$userId"] },
+           { $eq: ["$status", "$$status"] }
+        ]
+     }
+  }
+  ```
+
+### Khi cần join có điều kiện phức tạp
+
+Nếu điều kiện join không đơn thuần là `localField = foreignField` mà có logic:
+
+* So sánh nhiều field
+* So sánh field với giá trị tính toán (use expression)
+* Kết hợp `$and`, `$or`, `$gte`, `$lte`,…
+
+Ví dụ join order theo khoảng thời gian của user:
+
+```js
+$lookup: {
+  from: "orders",
+  let: { uId: "$_id", start: "$startDate", end: "$endDate" },
+  pipeline: [
+     {
+       $match: {
+         $expr: {
+           $and: [
+             { $eq: ["$user_id", "$$uId"] },
+             { $gte: ["$createdAt", "$$start"] },
+             { $lte: ["$createdAt", "$$end"] }
+           ]
+         }
+       }
+     }
+  ],
+  as: "orders"
+}
+```
+
+### Khi cần sort/limit trong lookup
+
+- Dạng đơn giản **không hỗ trợ** `$sort`, `$limit`, `$project`, `$group`…, nhưng pipeline thì hỗ trợ đầy đủ.
+- Ví dụ lấy **3 comments mới nhất** cho mỗi bài post:
+
+  ```js
+  $lookup: {
+    from: "comments",
+    let: { postId: "$_id" },
+    pipeline: [
+      { $match: { $expr: { $eq: ["$post_id", "$$postId"] } } },
+      { $sort: { createdAt: -1 } },
+      { $limit: 3 }
+    ],
+    as: "recentComments"
+  }
+  ```
+
+### Khi cần project hoặc transform dữ liệu trước khi gán vào `as`
+
+- Dạng đơn giản không project được.
+- Nhưng pipeline có thể:
+  ```js
+  $lookup: {
+    from: "orders",
+    let: { uId: "$_id" },
+    pipeline: [
+      { 
+        $match: { 
+          $expr: { $eq: ["$user_id", "$$uId"] } 
+        } 
+      },
+      { 
+        $project: { 
+          total: 1, 
+          createdAt: 1, 
+          _id: 0 
+        } 
+      }
+    ],
+    as: "orders"
+  }
+  ```
+
+| Trường hợp                         | Dùng dạng đơn giản | Dùng let + pipeline |
+| ------------------------------------- | ----------------------- | -------------------- |
+| Join 1 field = 1 field                | ✔                      | ❌                   |
+| Join theo nhiều điều kiện         | ❌                      | ✔                   |
+| So sánh phức tạp, dùng expression | ❌                      | ✔                   |
+| Sort/limit/project/group trong join   | ❌                      | ✔                   |
+| Chỉ cần join cơ bản               | ✔                      | ❌                   |
 
 ## Giới hạn và lưu ý
 
